@@ -1,0 +1,138 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+const int NMAX = 5e5+5;
+const long long INF = 1e18;
+
+/**
+Se efectueaza algoritmul lui Dijkstra din nodul N pentru a identifica distanta fata de celelalte noduri din graf.
+Aceasta distanta serveste drept criteriu pentru "honest path".
+**/
+
+int n, m;
+long long dist[NMAX+1];
+long long dp[NMAX+1];
+int tata[NMAX+1];
+int order[NMAX+1];
+vector<pair<int,int>> adj[NMAX+1];
+
+struct State {
+    int node;
+    long long cost;
+
+    bool operator < (const State& other) const {
+        return (*this).cost > other.cost;
+    }
+};
+
+void read_input() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    cin >> n >> m;
+    for(int i = 1; i <= m; i++) {
+        int st, dr, cost;
+        cin >> st >> dr >> cost;
+        adj[st].push_back({dr, cost});
+        adj[dr].push_back({st, cost});
+    }
+}
+
+void init() {
+    for(int i = 1; i <= n; i++) {
+        dist[i] = INF;
+        order[i] = i;
+        tata[i] = -1;
+        dp[i] = 0;
+    }
+    dist[n] = 0;
+    // dp[n] ramane 0 pentru ca un drum care se termina in N are cost 0 din acel punct
+}
+
+void Dijkstra() {
+    priority_queue<State> pq;
+    pq.push({n, 0});
+    while(!pq.empty()) {
+        int curr_node = pq.top().node;
+        long long curr_cost = pq.top().cost;
+        pq.pop();
+
+        if(curr_cost > dist[curr_node])
+            continue;
+
+        for(auto i : adj[curr_node]) {
+            int nxt_node = i.first;
+            int nxt_cost = i.second;
+
+            if(dist[curr_node] + 1LL*nxt_cost < dist[nxt_node]) {
+                dist[nxt_node] = dist[curr_node] + 1LL*nxt_cost;
+                pq.push({nxt_node, dist[nxt_node]});
+            }
+        }
+    }
+}
+
+// Comparator pentru sortare descrescatoare dupa distanta fata de N
+bool cmp(const int& x, const int& y) {
+    return dist[x] > dist[y];
+}
+
+void solve() {
+    init();
+    Dijkstra();
+    
+    // Sortam nodurile descrescator dupa distanta fata de N.
+    // Un "honest path" merge mereu spre noduri cu distanta mai mica, deci acesta este ordinea topologica.
+    sort(order+1, order+n+1, cmp);
+    
+    for(int i = 1; i <= n; i++) {
+        int curr_node = order[i];
+        
+        // Daca nodul nu este accesibil din N, il sarim
+        if (dist[curr_node] == INF) continue;
+
+        for(auto j : adj[curr_node]) {
+            int nxt_node = j.first;
+            int nxt_cost = j.second;
+
+            // Conditia de "honest path": distanta fata de destinatie trebuie sa scada strict
+            if(dist[nxt_node] < dist[curr_node]) {
+                // Incercam sa maximizam lungimea drumului pana la N
+                if(dp[curr_node] < dp[nxt_node] + 1LL*nxt_cost) {
+                    dp[curr_node] = dp[nxt_node] + 1LL*nxt_cost;
+                    tata[curr_node] = nxt_node;
+                }
+            }
+        }
+    }
+
+    // Gasim nodul de la care incepe cel mai lung drum honest catre N
+    long long mx = -1;
+    int pos = -1;
+    for(int i = 1; i <= n; i++) {
+        if(dp[i] > mx) {
+            mx = dp[i];
+            pos = i;
+        }
+    }
+
+    // Reconstructia drumului folosind vectorul de succesori (tata)
+    vector<int> path;
+    int curr = pos;
+    while(curr != -1) {
+        path.push_back(curr);
+        curr = tata[curr];
+    }
+
+    // Afisare conform cerintei
+    cout << mx << ' ' << (int)path.size() << '\n';
+    for(int i = 0; i < path.size(); i++) {
+        cout << path[i] << (i == (int)path.size() - 1 ? "" : " ");
+    }
+    cout << endl;
+}
+
+int main() {
+    read_input();
+    solve();
+    return 0;
+}
